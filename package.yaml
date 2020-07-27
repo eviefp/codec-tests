@@ -28,6 +28,7 @@ default-extensions:
   - BangPatterns
   - ConstraintKinds
   - DataKinds
+  - DerivingStrategies
   - DeriveDataTypeable
   - DeriveGeneric
   - EmptyDataDecls
@@ -36,6 +37,7 @@ default-extensions:
   - GADTs
   - GeneralizedNewtypeDeriving
   - InstanceSigs
+  - LambdaCase
   - MultiParamTypeClasses
   - NoImplicitPrelude
   - NoMonomorphismRestriction
