@@ -1,14 +1,19 @@
 module XmlCodec where
 
 import Codec
-import Data.Maybe (maybeToList)
-import Data.Foldable (asum)
-import Data.Maybe (catMaybes)
-import Data.Functor.Identity (Identity(..))
-import Data.Profunctor (Star(Star))
+import Control.Category
+    ((>>>))
+import Control.Monad
+    (join)
+import Data.Foldable
+    (asum)
+import Data.Functor.Identity
+    (Identity (..))
+import Data.Maybe
+    (catMaybes, maybeToList)
+import Data.Profunctor
+    (Star (Star))
 import Prelude
-import Control.Category ((>>>))
-import Control.Monad(join)
 
 type XmlCodec a = Codec Maybe Identity XmlNode a
 
@@ -67,7 +72,7 @@ element tag = mkCodec decode encode
   where
     decode :: XmlNode -> Maybe [XmlNode]
     decode (Node t c) = if t == tag then Just c else Nothing
-    decode _ = Nothing
+    decode _          = Nothing
 
     encode :: [XmlNode] -> Identity XmlNode
     encode = pure . Node tag
@@ -80,7 +85,7 @@ attribute name = mkCodec decode encode
 
     nodeToLookup :: XmlNode -> Maybe (String, String)
     nodeToLookup (Attribute t v) = Just (t, v)
-    nodeToLookup _ = Nothing
+    nodeToLookup _               = Nothing
 
     encode :: String -> Identity [XmlNode]
     encode = pure . pure . Attribute name
@@ -114,7 +119,7 @@ child tag = mkCodec decode encode
 
     nodeToLookup :: XmlNode -> Maybe (String, XmlNode)
     nodeToLookup n@(Node t _) = Just (t, n)
-    nodeToLookup _ = Nothing
+    nodeToLookup _            = Nothing
 
     encode :: XmlNode -> Identity [XmlNode]
     encode = pure . pure . Node tag . pure
@@ -127,7 +132,7 @@ text = mkCodec decode encode
 
     nodeToLookup :: XmlNode -> Maybe String
     nodeToLookup (Text t) = Just t
-    nodeToLookup _ = Nothing
+    nodeToLookup _        = Nothing
 
     encode :: String -> Identity [XmlNode]
     encode = pure . pure . Group . pure . Text

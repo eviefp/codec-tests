@@ -1,11 +1,4 @@
 let
-  inherit (import ./common.nix) pkgs ghcide;
+  tooling = import ./default.nix;
 in
-  pkgs.mkShell rec {
-    nativeBuildInputs = with pkgs; [
-      cabal2nix
-      haskell.compiler.ghc883
-      haskellPackages.ghcid
-      ghcide
-    ];
-  }
+  tooling.haskell.mkShell

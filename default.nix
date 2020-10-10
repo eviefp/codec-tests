@@ -1,4 +1,5 @@
 let
-  inherit (import ./common.nix) pkgs gitignoreSource;
+  sources = import ./nix/sources.nix;
+  tooling = import sources.nix-tooling;
 in
-  pkgs.haskell.packages.ghc883.callCabal2nix "codecs" (gitignoreSource ./.) {}
+  tooling
