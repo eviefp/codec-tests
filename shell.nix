@@ -1,4 +1,4 @@
 let
   tooling = import ./default.nix;
 in
-  tooling.haskell.mkShell
+  tooling.haskell.shell

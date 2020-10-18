@@ -17,10 +17,10 @@
         "homepage": null,
         "owner": "vladciobanu",
         "repo": "nix-tooling",
-        "rev": "63fd601de98bddaba2eaf3f3ae3a69d9e84b69dd",
-        "sha256": "1asddg3rxx37dm4sv4vdqnhq4f0pspidlzrdj8fd23d7sbzwqx8d",
+        "rev": "777a39d9865e98963676dc63478a5a1fa7aec25e",
+        "sha256": "07m39z49avxcgdqf890n8z6b6m89wb4qx70540lyk7ya475xhhfj",
         "type": "tarball",
-        "url": "https://github.com/vladciobanu/nix-tooling/archive/63fd601de98bddaba2eaf3f3ae3a69d9e84b69dd.tar.gz",
+        "url": "https://github.com/vladciobanu/nix-tooling/archive/777a39d9865e98963676dc63478a5a1fa7aec25e.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs": {
