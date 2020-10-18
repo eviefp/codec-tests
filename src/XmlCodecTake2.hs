@@ -1,4 +1,5 @@
-{-# language ExplicitForAll #-}
+{-# language ExplicitForAll   #-}
+{-# language TypeApplications #-}
 
 module XmlCodecTake2 where
 
@@ -20,37 +21,28 @@ type XmlCodec a b = Codec Maybe Identity a b
 
 data XmlNode
     = Node String [ Attribute ] [ XmlNode ]
-    | Text String
+    | Text String String
     deriving stock (Eq, Show)
 
 data Attribute = Attribute String String
     deriving stock (Eq, Show)
 
-example :: XmlNode
-example =
-    Node
-        "parent"
-        [ Attribute "key1" "value1"
-        , Attribute "key2" "value2"
-        ]
-        []
+text :: XmlCodec XmlNode (String, String)
+text = mkCodec decode encode
+  where
+    decode :: XmlNode -> Maybe (String, String)
+    decode (Text tag t) = Just (tag, t)
+    decode (Node _ _ _) = Nothing
 
-example' :: XmlNode
-example' =
-    Node
-        "parent"
-        [ Attribute "key1" "value1"
-        , Attribute "key2" "value2"
-        , Attribute "key3" "value3"
-        ]
-        []
+    encode :: (String, String) -> Identity XmlNode
+    encode (tag, t) = pure $ Text tag t
 
 element :: XmlCodec XmlNode (String, ([Attribute], [XmlNode]))
 element = mkCodec decode encode
   where
     decode :: XmlNode -> Maybe (String, ([Attribute], [XmlNode]))
     decode (Node tag attrs xs) = Just (tag, (attrs, xs))
-    decode (Text _)            = Nothing
+    decode (Text _ _)          = Nothing
 
     encode :: (String, ([Attribute], [XmlNode])) -> Identity XmlNode
     encode (tag, (attrs, xs)) = pure $ Node tag attrs xs
@@ -132,7 +124,7 @@ assertRight a = mkCodec decode encode
     encode x = pure (x, a)
 
 assert
-    :: forall m n a
+    :: forall a m n
      . Eq a
     => Alternative m
     => Applicative n
@@ -236,6 +228,16 @@ thingCodec = invmap2 id id to from getKeyAttribute
     from :: Thing -> (String, String)
     from (Thing a b) = (a, b)
 
+xmap :: forall a b. XmlCodec a b -> XmlCodec [a] [b]
+xmap (Codec (Star mab) (Star nba)) =
+    mkCodec decode encode
+  where
+    decode :: [a] -> Maybe [b]
+    decode = traverse mab
+
+    encode :: [b] -> Identity [a]
+    encode = traverse nba
+
 (>:>) :: forall a b c. XmlCodec a b -> XmlCodec [a] c -> XmlCodec [a] (b, c)
 (>:>) (Codec (Star mab) (Star nba)) (Codec (Star mac) (Star nca)) =
     mkCodec decode encode
@@ -257,8 +259,30 @@ thingCodec = invmap2 id id to from getKeyAttribute
     from :: (b, c) -> (b, (c, ()))
     from (b, c) = (b, (c, ()))
 
+single :: forall a b. Eq a => XmlCodec a b -> XmlCodec [a] b
+single c = (c >:> assert []) >># ()
+
 data Thing' = Thing' String String String
     deriving stock Show
+
+example :: XmlNode
+example =
+    Node
+        "parent"
+        [ Attribute "key1" "value1"
+        , Attribute "key2" "value2"
+        ]
+        []
+
+example' :: XmlNode
+example' =
+    Node
+        "parent"
+        [ Attribute "key1" "value1"
+        , Attribute "key2" "value2"
+        , Attribute "key3" "value3"
+        ]
+        []
 
 thingCodec' :: XmlCodec XmlNode Thing'
 thingCodec' =
@@ -274,6 +298,139 @@ thingCodec' =
 
     from :: Thing' -> ((), (String, (String, String)), ())
     from (Thing' s1 s2 s3) = ((), (s1, (s2, s3)), ())
+
+example3 :: XmlNode
+example3 =
+    Node
+        "parent"
+        [ Attribute "key1" "value1"
+        , Attribute "key2" "value2"
+        , Attribute "key3" "value3"
+        ]
+        [ Node
+            "child"
+            []
+            []
+        ]
+
+data Thing3 = Thing3 String String String String
+    deriving stock Show
+
+thingCodec3 :: XmlCodec XmlNode Thing3
+thingCodec3 =
+    element'
+        (assert "parent")
+        (xmap attributeText)
+        (single $ element'
+            id
+            (assert [])
+            (assert [])
+            to'
+            from'
+        )
+        to
+        from
+        >>> mkCodec decode encode
+  where
+    to' :: (String, (), ()) -> String
+    to' (s, _, _) = s
+
+    from' :: String -> (String, (), ())
+    from' s = (s, (), ())
+
+    to :: ((), [(String, String)], String) -> ([(String, String)], String)
+    to (_, xs, s) = (xs, s)
+
+    from :: ([(String, String)], String) -> ((), [(String, String)], String)
+    from (xs, s) = ((), xs, s)
+
+    decode :: ([(String, String)], String) -> Maybe Thing3
+    decode (xs, s) = do
+        s1 <- lookup "key1" xs
+        s2 <- lookup "key2" xs
+        s3 <- lookup "key3" xs
+        pure $ Thing3 s1 s2 s3 s
+
+    encode :: Thing3 -> Identity ([(String, String)], String)
+    encode (Thing3 s1 s2 s3 s) =
+        pure ([("key1", s1), ("key2", s2), ("key3", s3)], s)
+
+data T4s = First | Second | Third
+    deriving stock (Eq, Show)
+
+data Thing4 = Thing4 String [T4s]
+    deriving stock Show
+
+example4 :: XmlNode
+example4 =
+    Node
+        "parent"
+        [ Attribute "key" "value"
+        ]
+        [ Text "t4" "first"
+        , Text "t4" "second"
+        , Text "t4" "third"
+        , Text "t4" "third"
+        , Text "t4" "first"
+        ]
+
+-- type XmlCodec a b = Codec Maybe Identity a b
+
+t4sParser' :: String -> T4s -> Codec Maybe Identity String T4s
+t4sParser' txt ctor = mkCodec decode encode
+  where
+    decode :: String -> Maybe T4s
+    decode t
+        | t == txt = Just ctor
+        | otherwise = Nothing
+
+    encode :: T4s -> Identity String
+    encode _ = pure txt
+
+t4sParser :: Codec Maybe Identity String T4s
+t4sParser =
+    invmap2
+        id
+        id
+        (either (either id id) id)
+        go
+        $ t4sParser' "first" First
+            // t4sParser' "second" Second
+            // t4sParser' "third" Third
+  where
+    go :: T4s -> Either (Either T4s T4s) T4s
+    go = \case
+        First  -> Left (Left First)
+        Second -> Left (Right Second)
+        Third  -> Right Third
+
+t4sXml :: Codec Maybe Identity XmlNode T4s
+t4sXml =
+    invmap2
+        id
+        id
+        snd
+        (\t -> ((), t))
+        $ text >>> (assert "t4" ^^^ t4sParser)
+
+thingCodec4 :: XmlCodec XmlNode Thing4
+thingCodec4 =
+    element'
+        (assert "parent")
+        (single $ attributeValue "key")
+        (xmap t4sXml)
+        to
+        from
+  where
+    to :: ((), String, [T4s]) -> Thing4
+    to (_, attr, t4s) = Thing4 attr t4s
+
+    from :: Thing4 -> ((), String, [T4s])
+    from (Thing4 attr t4s) = ((), attr, t4s)
+
+
+
+
 
 runDecoder :: XmlCodec a b -> a -> Maybe b
 runDecoder (Codec (Star decode) _) = decode
